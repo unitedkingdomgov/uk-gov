@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Estado - GovUK</title>
+    <style>
+        /* Estilos Globais originais intactos */
+        :root {
+            --bg-color: #0a0e17;
+            --panel-bg: rgba(16, 24, 43, 0.8);
+            --border-color: #1f3a5f;
+            --text-main: #e2f1ff;
+            --text-muted: #8b9bb4;
+            --hud-glow: 0 0 10px rgba(31, 58, 95, 0.5);
+            
+            --color-bad: #ff3333;
+            --color-mid: #ffcc00;
+            --color-good: #00cc66;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                linear-gradient(rgba(10, 14, 23, 0.9), rgba(10, 14, 23, 0.9)),
+                linear-gradient(to right, #111d30 1px, transparent 1px),
+                linear-gradient(to bottom, #111d30 1px, transparent 1px);
+            background-size: 100% 100%, 50px 50px, 50px 50px;
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        /* Tela de Login */
+        #login-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+
+        .login-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: var(--hud-glow);
+            text-align: center;
+            width: 320px;
+        }
+
+        /* ESTILO DA FOTO */
+        .login-banner {
+            width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 15px rgba(31, 58, 95, 0.6);
+            display: block;
+        }
+
+        .login-box h2 { margin-top: 0; letter-spacing: 2px; }
+        .login-box input {
+            width: 100%; padding: 10px; margin: 15px 0;
+            background: #000; border: 1px solid var(--border-color);
+            color: #fff; border-radius: 4px; box-sizing: border-box;
+            text-align: center; font-size: 16px; letter-spacing: 5px;
+        }
+        .login-btn {
+            background: #1f3a5f; color: #fff; border: none;
+            padding: 10px 20px; cursor: pointer; border-radius: 4px;
+            width: 100%; margin-bottom: 10px; font-weight: bold;
+            transition: 0.3s;
+        }
+        .login-btn:hover { background: #2a4d7d; }
+        .guest-btn { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); }
+
+        /* Painel Principal */
+        #dashboard { display: none; padding: 20px; }
+        
+        .header {
+            text-align: center; padding: 20px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+        .header h1 { margin: 0; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .category-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--hud-glow);
+            backdrop-filter: blur(5px);
+        }
+
+        .category-card h3 {
+            margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px; font-size: 18px; letter-spacing: 1px;
+            color: #64a6f8;
+        }
+
+        .stat-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 15px; font-size: 14px;
+        }
+
+        .stat-label { 
+            width: 45%; 
+            transition: color 0.4s ease;
+        }
+        
+        .stat-controls {
+            display: flex; align-items: center; width: 55%; justify-content: space-between;
+        }
+
+        .btn-adjust {
+            background: transparent; border: 1px solid var(--border-color);
+            color: #fff; width: 24px; height: 24px; border-radius: 50%;
+            cursor: pointer; font-size: 14px; display: none;
+            align-items: center; justify-content: center;
+            transition: 0.2s;
+        }
+        .btn-adjust:hover { background: rgba(255,255,255,0.2); }
+
+        .bar-container {
+            flex-grow: 1; background: #000; height: 8px;
+            margin: 0 10px; border-radius: 4px; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%; width: 50%; border-radius: 4px;
+            transition: width 0.4s ease, background-color 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .stat-value {
+            width: 30px; text-align: right; font-weight: bold; font-family: monospace; font-size: 16px;
+        }
+
+    </style>
+</head>
+<body>
+
+  <div id="login-screen">
+        <div class="login-box">
+            <img src="1000739843.jpg" alt="Banner" class="login-banner">
+            
+            <h2>Reino Unido - Oficial</h2>
+            <p style="color: var(--text-muted); font-size: 12px;">Acesso Restrito</p>
+            <input type="password" id="admin-pass" placeholder="SENHA" onkeypress="handleEnter(event)">
+            <button class="login-btn" onclick="loginAdmin()">ENTRAR COMO ADM</button>
+            <button class="login-btn guest-btn" onclick="loginGuest()">Entrar como Visitante</button>
+            <p id="login-error" style="color: var(--color-bad); display: none; font-size: 12px;">Senha incorreta.</p>
+
+            <div style="margin-top: 20px; display: flex; justify-content: center; gap: 20px;">
+                <a href="https://www.instagram.com/theroyalfamilyminecraft?igsh=MXU1aGdlNW9qb256cg==" target="_blank" style="text-decoration: none; color: var(--text-muted); font-size: 14px; transition: 0.3s;">
+                    <img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" width="24" height="24" style="vertical-align: middle; margin-right: 5px;">
+                    Instagram
+                </a>
+                <a href="https://www.tiktok.com/@the.british.empire.uk?_r=1&_t=ZS-963lAq07DZU" target="_blank" style="text-decoration: none; color: var(--text-muted); font-size: 14px; transition: 0.3s;">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3046/3046121.png" width="24" height="24" style="vertical-align: middle; margin-right: 5px;">
+                    TikTok
+                </a>
+            </div>
+        </div>
+</div>
+
+    <div id="dashboard">
+        <div class="header">
+            <h1>Dados Estatísticos do Reino Unido</h1>
+            <p id="user-mode-display" style="color: var(--text-muted);"></p>
+        </div>
+        <div class="grid" id="main-grid"></div>
+    </div>
+
+    <script type="module">
+        // Importando o Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // SUAS CHAVES DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBVUT-LXvoQeGw4L-YzzkEQMFaLqIMEdFk",
+            authDomain: "reinounidohud.firebaseapp.com",
+            databaseURL: "https://reinounidohud-default-rtdb.firebaseio.com",
+            projectId: "reinounidohud",
+            storageBucket: "reinounidohud.firebasestorage.app",
+            messagingSenderId: "569400364492",
+            appId: "1:569400364492:web:4f72880f985e067bece169",
+            measurementId: "G-9J3F3WFKXZ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const statsRef = ref(db, 'reino_unido_status');
+
+        // SUA LISTA COMPLETA ORIGINAL E INTACTA
+        const structure = {
+            "💰 Economia": ["PIB", "Crescimento Econômico", "Produção", "Consumo", "Investimento", "Inflação", "Desemprego", "Dívida Pública", "Receita (impostos)", "Gastos Públicos"],
+            "🏙️ Qualidade de Vida": ["Pobreza", "Desigualdade", "Satisfação Pública", "Bem-estar", "Acesso a Serviços"],
+            "⚕️ Saúde": ["Acesso à Saúde", "Capacidade Hospitalar", "Mortalidade", "Expectativa de Vida"],
+            "📚 Educação": ["Taxa de Alfabetização", "Acesso à Educação", "Nível Acadêmico"],
+            "🚓 Criminalidade": ["Segurança Pública", "Eficiência Policial", "Estabilidade Interna"],
+            "🏛️ Governo": ["Aprovação do Governo", "Estabilidade Política", "Eficiência Governamental"],
+            "🌍 Relações Internacionais": ["Comércio Exterior", "Influência Global"],
+            "🏗️ Infraestrutura": ["Transporte", "Energia", "Tecnologia"],
+            "🍃 Meio Ambiente": ["Poluição", "Sustentabilidade", "Recursos Naturais"]
+        };
+
+        let statsData = {};
+        let isAdmin = false;
+
+        // Funções de Login exportadas para o HTML
+        window.handleEnter = function(e) { if (e.key === 'Enter') loginAdmin(); }
+
+        window.loginAdmin = function() {
+            const pass = document.getElementById('admin-pass').value;
+            if (pass === '1322') {
+                isAdmin = true;
+                enterDashboard("Modo Administrador");
+            } else {
+                document.getElementById('login-error').style.display = 'block';
+            }
+        }
+
+        window.loginGuest = function() {
+            isAdmin = false;
+            enterDashboard("Modo Visitante");
+        }
+
+        function enterDashboard(modeText) {
+            document.getElementById('login-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                document.getElementById('user-mode-display').innerText = modeText;
+                renderDashboard();
+            }, 500);
+        }
+
+        // LÓGICA DE CORES ATUALIZADA (INVERSÃO DE INDICADORES)
+        function getColor(statName, value) {
+            // Lista de indicadores onde BAIXO é BOM (Verde) e ALTO é RUIM (Vermelho)
+            const invertedStats = [
+                "Inflação", "Desemprego", "Dívida Pública", "Gastos Públicos", 
+                "Pobreza", "Desigualdade", "Mortalidade", "Poluição"
+            ];
+
+            if (invertedStats.includes(statName)) {
+                // Lógica Invertida (Menor é melhor)
+                if (value <= 30) return 'var(--color-good)'; // 0 a 30: Verde
+                if (value <= 70) return 'var(--color-mid)';  // 31 a 70: Amarelo
+                return 'var(--color-bad)';                   // 71 a 100: Vermelho
+            } else {
+                // Lógica Padrão (Maior é melhor)
+                if (value <= 30) return 'var(--color-bad)';  // 0 a 30: Vermelho
+                if (value <= 70) return 'var(--color-mid)';  // 31 a 70: Amarelo
+                return 'var(--color-good)';                  // 71 a 100: Verde
+            }
+        }
+
+        let isFirstRender = true;
+
+        // PUXANDO DADOS DO FIREBASE EM TEMPO REAL
+        onValue(statsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                statsData = data;
+                if (isFirstRender) {
+                    renderDashboard();
+                    isFirstRender = false;
+                } else {
+                    // Atualiza apenas as barras e textos para não piscar a tela
+                    for (let category in structure) {
+                        structure[category].forEach(statName => {
+                            let val = statsData[statName];
+                            let color = getColor(statName, val); // Passando o nome e o valor
+                            
+                            let bar = document.getElementById('bar-' + statName);
+                            let valText = document.getElementById('val-' + statName);
+                            let labelText = document.getElementById('label-' + statName);
+                            
+                            if (bar && valText && labelText) {
+                                bar.style.width = val + '%';
+                                bar.style.backgroundColor = color;
+                                bar.style.boxShadow = `0 0 8px ${color}`;
+                                valText.innerText = val;
+                                valText.style.color = color;
+                                labelText.style.color = color;
+                            }
+                        });
+                    }
+                }
+            } else {
+                // Se for a primeira vez que entra, cria os dados com valor 50
+                for (let category in structure) {
+                    structure[category].forEach(stat => { statsData[stat] = 50; });
+                }
+                set(statsRef, statsData);
+            }
+        });
+
+        // A SUA FUNÇÃO DE RENDERIZAÇÃO ORIGINAL E COMPLETA
+        function renderDashboard() {
+            const grid = document.getElementById('main-grid');
+            grid.innerHTML = ''; 
+
+            for (let category in structure) {
+                let card = document.createElement('div');
+                card.className = 'category-card';
+                
+                let title = document.createElement('h3');
+                title.innerText = category;
+                card.appendChild(title);
+
+                structure[category].forEach(statName => {
+                    let val = statsData[statName] || 50;
+                    let color = getColor(statName, val); // Passando o nome e o valor
+
+                    let row = document.createElement('div');
+                    row.className = 'stat-row';
+
+                    let label = document.createElement('div');
+                    label.className = 'stat-label';
+                    label.id = 'label-' + statName;
+                    label.innerText = statName;
+                    label.style.color = color; 
+
+                    let controls = document.createElement('div');
+                    controls.className = 'stat-controls';
+
+                    let btnMinus = document.createElement('button');
+                    btnMinus.className = 'btn-adjust';
+                    btnMinus.innerText = '-';
+                    if (isAdmin) btnMinus.style.display = 'flex';
+                    // Chama a função global
+                    btnMinus.onclick = () => window.updateStat(statName, -1);
+
+                    let barContainer = document.createElement('div');
+                    barContainer.className = 'bar-container';
+                    
+                    let barFill = document.createElement('div');
+                    barFill.className = 'bar-fill';
+                    barFill.id = 'bar-' + statName;
+                    barFill.style.width = val + '%';
+                    barFill.style.backgroundColor = color;
+                    barFill.style.boxShadow = `0 0 8px ${color}`;
+                    barContainer.appendChild(barFill);
+
+                    let valueDisplay = document.createElement('div');
+                    valueDisplay.className = 'stat-value';
+                    valueDisplay.id = 'val-' + statName;
+                    valueDisplay.innerText = val;
+                    valueDisplay.style.color = color;
+
+                    let btnPlus = document.createElement('button');
+                    btnPlus.className = 'btn-adjust';
+                    btnPlus.innerText = '+';
+                    if (isAdmin) btnPlus.style.display = 'flex';
+                    // Chama a função global
+                    btnPlus.onclick = () => window.updateStat(statName, 1);
+
+                    controls.appendChild(btnMinus);
+                    controls.appendChild(barContainer);
+                    controls.appendChild(valueDisplay);
+                    controls.appendChild(btnPlus);
+
+                    row.appendChild(label);
+                    row.appendChild(controls);
+                    card.appendChild(row);
+                });
+
+                grid.appendChild(card);
+            }
+        }
+
+        // ENVIANDO O DADO NOVO PARA A NUVEM
+        window.updateStat = function(statName, change) {
+            let newVal = (statsData[statName] || 50) + change;
+            
+            if (newVal < 0) newVal = 0;
+            if (newVal > 100) newVal = 100;
+            
+            statsData[statName] = newVal;
+            
+            // Salva no Firebase (a atualização visual acontece automaticamente pelo onValue)
+            set(statsRef, statsData);
+        }
+    </script>
+</body>
+</html>
