@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HUD Dashboard - Reino Unido</title>
+    <style>
+        :root {
+            --bg-color: #0a0e17;
+            --panel-bg: rgba(16, 24, 43, 0.8);
+            --border-color: #1f3a5f;
+            --text-main: #e2f1ff;
+            --text-muted: #8b9bb4;
+            --hud-glow: 0 0 10px rgba(31, 58, 95, 0.5);
+            --color-bad: #ff3333;
+            --color-mid: #ffcc00;
+            --color-good: #00cc66;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                linear-gradient(rgba(10, 14, 23, 0.9), rgba(10, 14, 23, 0.9)),
+                linear-gradient(to right, #111d30 1px, transparent 1px),
+                linear-gradient(to bottom, #111d30 1px, transparent 1px);
+            background-size: 100% 100%, 50px 50px, 50px 50px;
+            color: var(--text-main);
+        }
+
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color); display: flex; align-items: center; justify-content: center; z-index: 1000;
+        }
+
+        .login-box {
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            padding: 40px; border-radius: 8px; box-shadow: var(--hud-glow); text-align: center; width: 320px;
+        }
+
+        .login-banner {
+            width: 100%; height: auto; border-radius: 6px; margin-bottom: 20px;
+            border: 1px solid var(--border-color); box-shadow: 0 0 15px rgba(31, 58, 95, 0.6);
+        }
+
+        .login-box h2 { margin-top: 0; letter-spacing: 2px; }
+        .login-box input {
+            width: 100%; padding: 10px; margin: 15px 0; background: #000; border: 1px solid var(--border-color);
+            color: #fff; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 16px; letter-spacing: 5px;
+        }
+        .login-btn {
+            background: #1f3a5f; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px;
+            width: 100%; margin-bottom: 10px; font-weight: bold; transition: 0.3s;
+        }
+        .login-btn:hover { background: #2a4d7d; }
+        .guest-btn { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); }
+
+        #dashboard { display: none; padding: 20px; }
+        .header { text-align: center; padding: 20px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; max-width: 1400px; margin: 0 auto; }
+        .category-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; box-shadow: var(--hud-glow); backdrop-filter: blur(5px); }
+        .category-card h3 { margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; font-size: 18px; color: #64a6f8; }
+        .stat-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; font-size: 14px; }
+        .stat-label { width: 45%; transition: color 0.4s ease; }
+        .stat-controls { display: flex; align-items: center; width: 55%; justify-content: space-between; }
+        .btn-adjust { background: transparent; border: 1px solid var(--border-color); color: #fff; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; display: none; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn-adjust:hover { background: rgba(255,255,255,0.2); }
+        .bar-container { flex-grow: 1; background: #000; height: 8px; margin: 0 10px; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+        .bar-fill { height: 100%; transition: width 0.4s ease, background-color 0.4s ease; }
+        .stat-value { width: 30px; text-align: right; font-weight: bold; font-family: monospace; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <img src="1000739843.jpg" alt="Banner" class="login-banner">
+            <h2>SISTEMA UK</h2>
+            <input type="password" id="admin-pass" placeholder="SENHA">
+            <button class="login-btn" onclick="loginAdmin()">ADM</button>
+            <button class="login-btn guest-btn" onclick="loginGuest()">VISITANTE</button>
+            <p id="login-error" style="color: var(--color-bad); display: none; font-size: 12px;">Senha incorreta.</p>
+        </div>
+    </div>
+
+    <div id="dashboard">
+        <div class="header">
+            <h1>Estatísticas do Reino Unido</h1>
+            <p id="user-mode-display" style="color: var(--text-muted);"></p>
+        </div>
+        <div class="grid" id="main-grid"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // CONFIGURAÇÃO REAL DO SEU PROJETO
+        const firebaseConfig = {
+            apiKey: "AIzaSyBVUT-LXvoQeGw4L-YzzkEQMFaLqIMEdFk",
+            authDomain: "reinounidohud.firebaseapp.com",
+            databaseURL: "https://reinounidohud-default-rtdb.firebaseio.com",
+            projectId: "reinounidohud",
+            storageBucket: "reinounidohud.firebasestorage.app",
+            messagingSenderId: "569400364492",
+            appId: "1:569400364492:web:4f72880f985e067bece169"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const statsRef = ref(db, 'stats_data');
+
+        const structure = {
+            "💰 Economia": ["PIB (GDP)", "Inflação", "Desemprego", "Dívida Pública"],
+            "🏙️ Qualidade de Vida": ["Bem-estar", "Acesso a Serviços"],
+            "⚕️ Saúde": ["Hospitais", "Expectativa de Vida"],
+            "🚓 Segurança": ["Eficiência Policial", "Criminalidade"],
+            "🏛️ Governo": ["Aprovação do Governo", "Estabilidade Política"]
+        };
+
+        let statsData = {};
+        let isAdmin = false;
+
+        // Funções de Login
+        window.loginAdmin = function() {
+            if (document.getElementById('admin-pass').value === '1322') {
+                isAdmin = true; enterDashboard("Modo Administrador");
+            } else { document.getElementById('login-error').style.display = 'block'; }
+        }
+        window.loginGuest = function() { isAdmin = false; enterDashboard("Modo Visitante"); }
+
+        function enterDashboard(modeText) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('user-mode-display').innerText = modeText;
+        }
+
+        function getColor(value) {
+            if (value <= 30) return 'var(--color-bad)';
+            if (value <= 70) return 'var(--color-mid)';
+            return 'var(--color-good)';
+        }
+
+        // Sincronização com Firebase
+        onValue(statsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                statsData = data;
+                renderDashboard();
+            } else {
+                // Inicia com 50 se o banco estiver vazio
+                Object.values(structure).flat().forEach(stat => { statsData[stat] = 50; });
+                set(statsRef, statsData);
+            }
+        });
+
+        function renderDashboard() {
+            const grid = document.getElementById('main-grid');
+            grid.innerHTML = '';
+            for (let category in structure) {
+                let card = document.createElement('div');
+                card.className = 'category-card';
+                card.innerHTML = `<h3>${category}</h3>`;
+
+                structure[category].forEach(statName => {
+                    let val = statsData[statName] || 50;
+                    let color = getColor(val);
+                    let row = document.createElement('div');
+                    row.className = 'stat-row';
+                    row.innerHTML = `
+                        <div class="stat-label" id="label-${statName}" style="color:${color}">${statName}</div>
+                        <div class="stat-controls">
+                            <button class="btn-adjust" style="display:${isAdmin?'flex':'none'}" onclick="updateStat('${statName}', -1)">-</button>
+                            <div class="bar-container"><div class="bar-fill" id="bar-${statName}" style="width:${val}%; background-color:${color}; box-shadow: 0 0 8px ${color}"></div></div>
+                            <div class="stat-value" id="val-${statName}" style="color:${color}">${val}</div>
+                            <button class="btn-adjust" style="display:${isAdmin?'flex':'none'}" onclick="updateStat('${statName}', 1)">+</button>
+                        </div>
+                    `;
+                    card.appendChild(row);
+                });
+                grid.appendChild(card);
+            }
+        }
+
+        window.updateStat = function(statName, change) {
+            let newVal = (statsData[statName] || 50) + change;
+            if (newVal >= 0 && newVal <= 100) {
+                statsData[statName] = newVal;
+                set(statsRef, statsData); // Atualiza na nuvem para todos
+            }
+        }
+    </script>
+</body>
+</html>
